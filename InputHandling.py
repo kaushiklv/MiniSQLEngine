@@ -33,11 +33,12 @@ def read_metadata(path):
     return table_map
 
 
-def read_data(path, table_list):
+def read_data(path, table_list, table_data):
     """
     Read the actual data of the tables into data structures
     :param path: Takes the directory containing the files as input
     :param table_list: List of tables from which data should be read
+    :param table_data: Metadata regarding all the tables of the DB
     :return: returns the data contained in those tables
     """
     csv.register_dialect('myDialect',
@@ -45,8 +46,18 @@ def read_data(path, table_list):
                          quoting=csv.QUOTE_ALL,
                          skipinitialspace=True)
 
+    actual_data_map = {}
     for table in table_list:
+        temp = []
+        column_names = table_data[table]
+        column_map = {}
         with open(table + ".csv", 'r') as f:
             reader = csv.reader(f, dialect='myDialect')
             for row in reader:
-                print(row)
+                temp.append(row)
+        temp = list(map(list, zip(*temp)))
+        for i, t in enumerate(temp):
+            column_map[column_names[i]] = t
+        actual_data_map[table] = column_map
+
+    return actual_data_map
