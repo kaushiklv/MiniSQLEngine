@@ -57,6 +57,7 @@ def read_data(path, table_list, table_data):
                 temp.append(row)
         temp = list(map(list, zip(*temp)))
         for i, t in enumerate(temp):
+            t = [int(i) for i in t]
             column_map[column_names[i]] = t
         actual_data_map[table] = column_map
 
