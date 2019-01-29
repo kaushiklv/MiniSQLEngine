@@ -51,7 +51,7 @@ def read_data(path, table_list, table_data):
         temp = []
         column_names = table_data[table]
         column_map = {}
-        with open(table + ".csv", 'r') as f:
+        with open(path + "/" + table + ".csv", 'r') as f:
             reader = csv.reader(f, dialect='myDialect')
             for row in reader:
                 temp.append(row)
