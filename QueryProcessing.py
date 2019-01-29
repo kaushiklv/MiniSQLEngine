@@ -1,4 +1,5 @@
 import re
+import QueryExecution as QE
 
 
 def handle_error_conditions(query):
@@ -16,10 +17,9 @@ def handle_error_conditions(query):
     4 - Incomplete Query
     """
     lower_query = query.lower()
-    if "select" not in lower_query or "from" not in lower_query:
+    if "select" not in lower_query or "from" not in lower_query or ';' not in query:
         return 4, None
-    if ';' in query:
-        query = query[:-1]
+    query = query[:-1]
     query_terms = re.split("select|from|where|SELECT|FROM|WHERE", query)[1:]
     query_terms = [qterm.strip() for qterm in query_terms]
     if not query_terms[0]:
@@ -211,16 +211,17 @@ def parse_and_validate_query(query_terms, table_data):
         response, condition_tuples = \
             parse_where(query_terms, table_data, valid_columns, valid_tables, response)
 
-    return response, select_columns, from_tables, condition_tuples
+    return response, select_columns, distinct, from_tables, condition_tuples
 
 
-def process_query(query_terms, table_data):
+def process_query(query_terms, table_data, path):
     """
     Takes a valid query and executes the query
     :param query_terms: terms which will be the input of the query
+    :param path: directory path to all the csv files
     :return: query results
     """
-    response, select_columns, from_tables, condition_tuples = \
+    response, select_columns, distinct, from_tables, condition_tuples = \
         parse_and_validate_query(query_terms, table_data)
     if response == "":
         response = "Valid"
@@ -228,6 +229,8 @@ def process_query(query_terms, table_data):
         print("SELECT ", select_columns)
         print("FROM ", from_tables)
         print("WHERE ", condition_tuples)
+        query_results = QE.execute_query(path, select_columns, distinct, from_tables, table_data, condition_tuples)
+        return query_results
     else:
         print("RESPONSE: ", response)
         print("SELECT ", select_columns)
@@ -236,20 +239,21 @@ def process_query(query_terms, table_data):
         return []
 
 
-def take_query(table_data):
+def take_query(table_data, path):
     """
     Take the query as input from the user and then give the results
     of the query back to the user
+    :param table_data: Metadata of all tables
+    :param path: directory path to all the csv files
     :return: query results
     """
-    while True:
-        query = input("Enter Query: ")
-        error_code, query_terms = handle_error_conditions(query)
-        error_response = response_for_error_code(error_code, query)
+    query = input("Enter Query: ")
+    error_code, query_terms = handle_error_conditions(query)
+    error_response = response_for_error_code(error_code, query)
 
-        if error_response == 2:
-            break
-        elif not error_response:
-            if not error_code and query_terms is not None:
-                query_results = process_query(query_terms, table_data)
-
+    if error_response == 2:
+        return []
+    elif not error_response:
+        if not error_code and query_terms is not None:
+            query_results = process_query(query_terms, table_data, path)
+            return query_results
