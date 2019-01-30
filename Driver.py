@@ -16,6 +16,6 @@ if __name__ == "__main__":
     # print(table_data)
 
     while True:
-        query_results = QP.take_query(table_data, path)
-        OP.show_query_results(query_results)
+        query_results, query = QP.take_query(table_data, path)
+        # OP.show_query_results(query_results, query, path)
 

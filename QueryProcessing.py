@@ -111,7 +111,7 @@ def parse_select(query_terms, valid_columns, response):
         distinct = 1
 
     select_columns = [term.strip() for term in query_terms[0].split(',')]
-    allowed = ["max", "min", "avg", "sum", "count"]
+    allowed = ["max", "min", "avg", "sum", "count", "*"]
 
     allow = 0
     for col in select_columns:
@@ -256,4 +256,4 @@ def take_query(table_data, path):
     elif not error_response:
         if not error_code and query_terms is not None:
             query_results = process_query(query_terms, table_data, path)
-            return query_results
+            return query, query_results
