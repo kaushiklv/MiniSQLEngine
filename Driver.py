@@ -12,10 +12,8 @@ if __name__ == "__main__":
 
     table_list = ["table1", "table2"]
     actual_data = IP.read_data(path, table_list, table_data)
-    # print(actual_data)
-    # print(table_data)
 
     while True:
-        query_results, query = QP.take_query(table_data, path)
-        # OP.show_query_results(query_results, query, path)
+        query_results, result_columns = QP.take_query(table_data, path)
+        OP.show_query_results(query_results, result_columns, path)
 

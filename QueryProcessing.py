@@ -229,14 +229,14 @@ def process_query(query_terms, table_data, path):
         print("SELECT ", select_columns)
         print("FROM ", from_tables)
         print("WHERE ", condition_tuples)
-        query_results = QE.execute_query(path, select_columns, distinct, from_tables, table_data, condition_tuples)
-        return query_results
+        query_results, result_columns = QE.execute_query(path, select_columns, distinct, from_tables, table_data, condition_tuples)
+        return query_results, result_columns
     else:
         print("RESPONSE: ", response)
         print("SELECT ", select_columns)
         print("FROM ", from_tables)
         print("WHERE ", condition_tuples)
-        return []
+        return [], []
 
 
 def take_query(table_data, path):
@@ -255,5 +255,5 @@ def take_query(table_data, path):
         return []
     elif not error_response:
         if not error_code and query_terms is not None:
-            query_results = process_query(query_terms, table_data, path)
-            return query, query_results
+            query_results, result_columns = process_query(query_terms, table_data, path)
+            return query_results, result_columns

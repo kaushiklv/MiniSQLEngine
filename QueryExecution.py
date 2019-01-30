@@ -7,10 +7,11 @@ def check_for_aggregate_function(select_columns):
     :param select_columns: columns
     :return: aggregate functions present or not
     """
+    aggr_pairs = []
     for col in select_columns:
         if len(col) > 1:
-            return col[0], col[1]
-    return "No", "No"
+            aggr_pairs.append([col[0], col[1]])
+    return aggr_pairs
 
 
 def calculate_aggregate_value(func, column):
@@ -163,6 +164,7 @@ def star_query(actual_data, distinct, from_tables):
     """
     Query that gives back the contents of the full table
     :param actual_data: Data taken from the CSV files
+    :param distinct: Flag to indicate distinct or not
     :param from_tables: tables to select the data from
     :return: query results
     """
@@ -195,8 +197,8 @@ def simple_query(actual_data, distinct, select_columns, from_tables):
     :param from_tables: tables to select the data from
     :return: query results
     """
-    func, column = check_for_aggregate_function(select_columns)
-    if func == "No" and len(from_tables) == 1:
+    aggr_pairs = check_for_aggregate_function(select_columns)
+    if len(aggr_pairs) == 0 and len(from_tables) == 1:
         query_results = []
         result_columns = [from_tables[0] + "." + col for col in select_columns]
 
@@ -211,16 +213,21 @@ def simple_query(actual_data, distinct, select_columns, from_tables):
 
         query_results = handle_distinct(query_results, distinct)
         return query_results, result_columns
-    elif func == "No" and len(from_tables) > 1:
+    elif len(aggr_pairs) == 0 and len(from_tables) > 1:
         query_results, result_columns = process_simple_query(from_tables, actual_data, select_columns)
         query_results = handle_distinct(query_results, distinct)
         return query_results, result_columns
     else:
-        column_data = []
-        if column:
-            column_data = actual_data[from_tables[0]][column]
-        aggregate_value = calculate_aggregate_value(func, column_data)
-        return [aggregate_value]
+        aggregate_values = []
+        result_columns = []
+        for pair in aggr_pairs:
+            column_data = []
+            for table in from_tables:
+                if pair[1] in list(actual_data[table].keys()):
+                    column_data = actual_data[table][pair[1]]
+            aggregate_values.append(calculate_aggregate_value(pair[0], column_data))
+            result_columns.append(pair[0] + "(" + from_tables[0] + '.' + pair[1] + ")")
+        return aggregate_values, result_columns
 
 
 def multi_condition_query(actual_data, distinct, select_columns, condition_tuples):
@@ -290,5 +297,6 @@ def execute_query(path, select_columns, distinct, from_tables, table_data, condi
         query_results, result_columns = complex_join_query(actual_data, distinct, select_columns, condition_tuples)
     else:
         query_results = []
+    print(result_columns)
     print(query_results)
-    return query_results
+    return query_results, result_columns
