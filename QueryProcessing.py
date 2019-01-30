@@ -147,6 +147,14 @@ def parse_where(query_terms, table_data, valid_columns, valid_tables, response):
     conditions = re.split("AND|OR|and|or", query_terms[2])
     conditions = [cond.strip() for cond in conditions]
 
+    logical_operator = ""
+    if len(conditions) > 1:
+        query = query_terms[2].lower()
+        if "and" in query:
+            logical_operator = "and"
+        elif "or" in query:
+            logical_operator = "or"
+
     condition_tuples = []
     wrong_condition = 0
 
@@ -188,7 +196,7 @@ def parse_where(query_terms, table_data, valid_columns, valid_tables, response):
 
     if wrong_condition:
         print("Where Condition is wrong\n")
-    return response, condition_tuples
+    return response, condition_tuples, logical_operator
 
 
 def parse_and_validate_query(query_terms, table_data):
@@ -208,10 +216,10 @@ def parse_and_validate_query(query_terms, table_data):
     condition_tuples = []
     if len(query_terms) > 2:
         # Check for and get data from the WHERE statement
-        response, condition_tuples = \
+        response, condition_tuples, logical_operator = \
             parse_where(query_terms, table_data, valid_columns, valid_tables, response)
 
-    return response, select_columns, distinct, from_tables, condition_tuples
+    return response, select_columns, distinct, from_tables, condition_tuples, logical_operator
 
 
 def process_query(query_terms, table_data, path):
@@ -221,7 +229,7 @@ def process_query(query_terms, table_data, path):
     :param path: directory path to all the csv files
     :return: query results
     """
-    response, select_columns, distinct, from_tables, condition_tuples = \
+    response, select_columns, distinct, from_tables, condition_tuples, logical_operator = \
         parse_and_validate_query(query_terms, table_data)
     if response == "":
         response = "Valid"
@@ -229,7 +237,8 @@ def process_query(query_terms, table_data, path):
         print("SELECT ", select_columns)
         print("FROM ", from_tables)
         print("WHERE ", condition_tuples)
-        query_results, result_columns = QE.execute_query(path, select_columns, distinct, from_tables, table_data, condition_tuples)
+        query_results, result_columns = \
+            QE.execute_query(path, select_columns, distinct, from_tables, table_data, condition_tuples, logical_operator)
         return query_results, result_columns
     else:
         print("RESPONSE: ", response)

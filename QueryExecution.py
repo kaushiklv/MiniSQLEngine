@@ -160,12 +160,34 @@ def handle_distinct(query_results, distinct):
         return query_results
 
 
-def star_query(actual_data, distinct, from_tables):
+def perform_operation(operand1, operand2, operation):
+    """
+    :param operand1:
+    :param operand2:
+    :param operation:
+    :return:
+    """
+    operand1 = int(operand1)
+    operand2 = int(operand2)
+    if operation == ">":
+        return operand1 > operand2
+    elif operation == ">=":
+        return operand1 >= operand2
+    elif operation == "=":
+        return operand1 == operand2
+    elif operation == "<=":
+        return operand1 <= operand2
+    elif operation == "<":
+        return operand1 < operand2
+
+
+def star_query(actual_data, distinct, from_tables, condition_tuples, logical_operator):
     """
     Query that gives back the contents of the full table
     :param actual_data: Data taken from the CSV files
     :param distinct: Flag to indicate distinct or not
     :param from_tables: tables to select the data from
+    :param condition_tuples: Tuples holding the where conditions
     :return: query results
     """
     if len(from_tables) == 1:
@@ -174,14 +196,56 @@ def star_query(actual_data, distinct, from_tables):
         actual_table = actual_data[from_tables[0]]
         table_len = len(list(actual_table.values())[0])
 
-        for i in range(table_len):
-            temp = []
-            for j, row in enumerate(list(actual_table.keys())):
-                temp.append(actual_table[row][i])
-            query_results.append(temp)
-        query_results = handle_distinct(query_results, distinct)
-
-        return query_results, result_columns
+        if len(condition_tuples) == 0:
+            for i in range(table_len):
+                temp = []
+                for j, row in enumerate(list(actual_table.keys())):
+                    temp.append(actual_table[row][i])
+                query_results.append(temp)
+            query_results = handle_distinct(query_results, distinct)
+            return query_results, result_columns
+        elif len(condition_tuples) == 1:
+            valid_rows = []
+            for i in range(table_len):
+                for j, row in enumerate(list(actual_table.keys())):
+                    if row == condition_tuples[0][0] and perform_operation(actual_table[row][i], condition_tuples[0][1], condition_tuples[0][2]):
+                        valid_rows.append(i)
+            for i in range(table_len):
+                temp = []
+                if i in valid_rows:
+                    for j, row in enumerate(list(actual_table.keys())):
+                        temp.append(actual_table[row][i])
+                    query_results.append(temp)
+            query_results = handle_distinct(query_results, distinct)
+            print(query_results)
+            return query_results, result_columns
+        elif len(condition_tuples) == 2:
+            valid_rows = []
+            if logical_operator == "and":
+                for i in range(table_len):
+                    checks = 0
+                    for j, row in enumerate(list(actual_table.keys())):
+                        if row == condition_tuples[checks][0] and \
+                                perform_operation(actual_table[row][i], condition_tuples[checks][1], condition_tuples[checks][2]):
+                            checks += 1
+                        if checks == 2:
+                            valid_rows.append(i)
+                            checks = 0
+            if logical_operator == "or":
+                for i in range(table_len):
+                    for j, row in enumerate(list(actual_table.keys())):
+                        if (row == condition_tuples[0][0] and perform_operation(actual_table[row][i], condition_tuples[0][1], condition_tuples[0][2])) \
+                                or \
+                           (row == condition_tuples[1][0] and perform_operation(actual_table[row][i], condition_tuples[1][1], condition_tuples[1][2])):
+                            valid_rows.append(i)
+            for i in range(table_len):
+                temp = []
+                if i in valid_rows:
+                    for j, row in enumerate(list(actual_table.keys())):
+                        temp.append(actual_table[row][i])
+                    query_results.append(temp)
+            query_results = handle_distinct(query_results, distinct)
+            return query_results, result_columns
     elif len(from_tables) > 1:
         query_results, result_columns = cartesian_product(from_tables, actual_data)
         query_results = handle_distinct(query_results, distinct)
@@ -266,7 +330,7 @@ def complex_join_query(actual_data, distinct, select_columns, condition_tuples):
     return []
 
 
-def execute_query(path, select_columns, distinct, from_tables, table_data, condition_tuples):
+def execute_query(path, select_columns, distinct, from_tables, table_data, condition_tuples, logical_operator):
     """
     Execute the given query and return the results
     :param select_columns: columns in the select statement
@@ -282,7 +346,7 @@ def execute_query(path, select_columns, distinct, from_tables, table_data, condi
     # Handling different types of queries
     # Star Query
     if len(select_columns) == 1 and select_columns[0] == "*":
-        query_results, result_columns = star_query(actual_data, distinct, from_tables)
+        query_results, result_columns = star_query(actual_data, distinct, from_tables, condition_tuples, logical_operator)
     # Simple Query
     elif len(from_tables) >= 1 and len(condition_tuples) == 0:
         query_results, result_columns = simple_query(actual_data, distinct, select_columns, from_tables)
