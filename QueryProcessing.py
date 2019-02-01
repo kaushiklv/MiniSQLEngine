@@ -113,6 +113,10 @@ def parse_select(query_terms, valid_columns, response):
     select_columns = [term.strip() for term in query_terms[0].split(',')]
     allowed = ["max", "min", "avg", "sum", "count", "*"]
 
+    for i, col in enumerate(select_columns):
+        if "." in col:
+            select_columns[i] = col.split(".")[1]
+
     allow = 0
     for col in select_columns:
         for word in allowed:
@@ -167,18 +171,21 @@ def parse_where(query_terms, table_data, valid_columns, valid_tables, response):
             del terms[1]
         if "." in terms[0]:
             for term in terms:
-                term_parts = term.split(".")
-                if term_parts[0] not in valid_tables:
-                    response += term_parts[0] + " is not a Valid Table\n"
-                    valid = 0
-                if term_parts[1] not in valid_columns:
-                    response += term_parts[1] + " is not a Valid Column\n"
-                    valid = 0
-                if term_parts[1] not in table_data[term_parts[0]]:
-                    response += term_parts[0] + " doesn't contain column " + term_parts[1] + "\n"
-                    valid = 0
-                if valid:
-                    condition_tuple.append(term_parts)
+                if "." in term:
+                    term_parts = term.split(".")
+                    if term_parts[0] not in valid_tables:
+                        response += term_parts[0] + " is not a Valid Table\n"
+                        valid = 0
+                    if term_parts[1] not in valid_columns:
+                        response += term_parts[1] + " is not a Valid Column\n"
+                        valid = 0
+                    if term_parts[1] not in table_data[term_parts[0]]:
+                        response += term_parts[0] + " doesn't contain column " + term_parts[1] + "\n"
+                        valid = 0
+                    if valid:
+                        condition_tuple.append(term_parts)
+                else:
+                    condition_tuple.append(term)
             if valid:
                 condition_tuple.append(check_operator(condition))
         else:
@@ -218,11 +225,14 @@ def parse_and_validate_query(query_terms, table_data):
         # Check for and get data from the WHERE statement
         response, condition_tuples, logical_operator = \
             parse_where(query_terms, table_data, valid_columns, valid_tables, response)
+    else:
+        condition_tuples = ""
+        logical_operator = ""
 
     return response, select_columns, distinct, from_tables, condition_tuples, logical_operator
 
 
-def process_query(query_terms, table_data, path):
+def process_query(query_terms, table_data):
     """
     Takes a valid query and executes the query
     :param query_terms: terms which will be the input of the query
@@ -233,30 +243,22 @@ def process_query(query_terms, table_data, path):
         parse_and_validate_query(query_terms, table_data)
     if response == "":
         response = "Valid"
-        print("RESPONSE: ", response)
-        print("SELECT ", select_columns)
-        print("FROM ", from_tables)
-        print("WHERE ", condition_tuples)
         query_results, result_columns = \
-            QE.execute_query(path, select_columns, distinct, from_tables, table_data, condition_tuples, logical_operator)
+            QE.execute_query(select_columns, distinct, from_tables, table_data, condition_tuples, logical_operator)
         return query_results, result_columns
     else:
-        print("RESPONSE: ", response)
-        print("SELECT ", select_columns)
-        print("FROM ", from_tables)
-        print("WHERE ", condition_tuples)
+        print("ERROR: ", response)
         return [], []
 
 
-def take_query(table_data, path):
+def take_query(table_data, query):
     """
     Take the query as input from the user and then give the results
     of the query back to the user
     :param table_data: Metadata of all tables
-    :param path: directory path to all the csv files
+    :param query: Given input query
     :return: query results
     """
-    query = input("Enter Query: ")
     error_code, query_terms = handle_error_conditions(query)
     error_response = response_for_error_code(error_code, query)
 
@@ -264,5 +266,5 @@ def take_query(table_data, path):
         return []
     elif not error_response:
         if not error_code and query_terms is not None:
-            query_results, result_columns = process_query(query_terms, table_data, path)
+            query_results, result_columns = process_query(query_terms, table_data)
             return query_results, result_columns

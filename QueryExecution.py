@@ -214,6 +214,10 @@ def star_query(actual_data, distinct, from_tables, condition_tuples, logical_ope
             query_results = handle_distinct(query_results, distinct)
             return query_results, result_columns
         elif len(condition_tuples) == 1:
+            if "." in condition_tuples[0][0]:
+                condition_tuples[0][0] = condition_tuples[0][0].split(".")[1]
+            if len(condition_tuples[0][0]) > 1:
+                condition_tuples[0][0] = condition_tuples[0][0][1]
             valid_rows = []
             for i in range(table_len):
                 for j, row in enumerate(list(actual_table.keys())):
@@ -258,8 +262,10 @@ def star_query(actual_data, distinct, from_tables, condition_tuples, logical_ope
     elif len(from_tables) > 1 and len(condition_tuples) == 1:
         query_results, result_columns = cartesian_product(from_tables, actual_data)
         # TODO: Multiple normal conditions
-        condition_tuples[0][0] = ".".join(condition_tuples[0][0])
-        condition_tuples[0][1] = ".".join(condition_tuples[0][1])
+        if isinstance(condition_tuples[0][0], list):
+            condition_tuples[0][0] = ".".join(condition_tuples[0][0])
+        if isinstance(condition_tuples[0][1], list):
+            condition_tuples[0][1] = ".".join(condition_tuples[0][1])
 
         if len(condition_tuples) == 1:
             final_results = []
@@ -272,6 +278,8 @@ def star_query(actual_data, distinct, from_tables, condition_tuples, logical_ope
                         operand1 = col
                     if result_columns[i] == condition_tuples[0][1]:
                         operand2 = col
+                    if condition_tuples[0][1].isnumeric():
+                        operand2 = condition_tuples[0][1]
                     if operand1 and operand2 and perform_operation(operand1, operand2, condition_tuples[0][2]):
                         valid = 1
                 if valid:
@@ -282,7 +290,8 @@ def star_query(actual_data, distinct, from_tables, condition_tuples, logical_ope
                     final_results.append(temp)
 
             query_results = final_results
-            result_columns.remove(condition_tuples[0][1])
+            if condition_tuples[0][1] in result_columns:
+                result_columns.remove(condition_tuples[0][1])
         query_results = handle_distinct(query_results, distinct)
         return query_results, result_columns
     elif len(from_tables) > 1:
@@ -303,7 +312,11 @@ def simple_query(actual_data, distinct, select_columns, from_tables):
     aggr_pairs = check_for_aggregate_function(select_columns)
     if len(aggr_pairs) == 0 and len(from_tables) == 1:
         query_results = []
-        result_columns = [from_tables[0] + "." + col for col in select_columns]
+
+        if "." not in select_columns[0]:
+            result_columns = [from_tables[0] + "." + col for col in select_columns]
+        else:
+            result_columns = select_columns
 
         table = actual_data[from_tables[0]]
         table_len = len(list(table.values())[0])
@@ -421,7 +434,6 @@ def simple_join_query(actual_data, distinct, select_columns, from_tables, condit
     :param condition_tuples: conditions on the data
     :return: query results
     """
-    # TODO: Handle actual join queries for this and multi condition ones
     # TODO: Handling columns when given in . form
     # TODO: Think of all other possible cases and try to cover them
     aggr_pairs = check_for_aggregate_function(select_columns)
@@ -432,7 +444,7 @@ def simple_join_query(actual_data, distinct, select_columns, from_tables, condit
         res_columns = [col.split(".")[1] for col in result_columns]
         col_map = {i: val for i, val in enumerate(res_columns)}
 
-        if isinstance(condition_tuples[0][0], list) and isinstance(condition_tuples[0][1], list) and condition_tuples[0][2] == "=":
+        if isinstance(condition_tuples[0][0], list) and isinstance(condition_tuples[0][1], list):
             condition_tuples[0][0] = ".".join(condition_tuples[0][0])
             condition_tuples[0][1] = ".".join(condition_tuples[0][1])
 
@@ -457,11 +469,14 @@ def simple_join_query(actual_data, distinct, select_columns, from_tables, condit
             query_results = final_results
         else:
             final_results = []
+
+            if isinstance(condition_tuples[0][0], list):
+                condition_tuples[0][0] = condition_tuples[0][0][1]
+
             for row in query_results:
                 valid = 0
                 for i, col in enumerate(row):
-                    if col_map[i] == condition_tuples[0][0] and perform_operation(col, condition_tuples[0][1],
-                                                                                  condition_tuples[0][2]):
+                    if col_map[i] == condition_tuples[0][0] and perform_operation(col, condition_tuples[0][1], condition_tuples[0][2]):
                         valid = 1
                 if valid:
                     temp = []
@@ -504,14 +519,13 @@ def complex_join_query(actual_data, distinct, select_columns, from_tables, condi
     aggr_pairs = check_for_aggregate_function(select_columns)
 
     if len(aggr_pairs) == 0 and len(from_tables) > 1 and len(condition_tuples) == 2:
-        if isinstance(condition_tuples[0][0], list) and isinstance(condition_tuples[0][1], list) and condition_tuples[0][2] == "=":
+        if isinstance(condition_tuples[0][0], list) and isinstance(condition_tuples[0][1], list):
             query_results, result_columns = cartesian_product(from_tables, actual_data)
 
             res_columns = [col.split(".")[1] for col in result_columns]
             col_map = {i: val for i, val in enumerate(res_columns)}
 
-            if isinstance(condition_tuples[0][0], list) and isinstance(condition_tuples[0][1], list) and \
-                    condition_tuples[0][2] == "=":
+            if isinstance(condition_tuples[0][0], list) and isinstance(condition_tuples[0][1], list):
                 condition_tuples[0][0] = ".".join(condition_tuples[0][0])
                 condition_tuples[0][1] = ".".join(condition_tuples[0][1])
 
@@ -550,31 +564,63 @@ def complex_join_query(actual_data, distinct, select_columns, from_tables, condi
 
                 return query_results, result_columns
         else:
-            query_results, result_columns = process_simple_query(from_tables, actual_data, select_columns)
+            query_results, result_columns = cartesian_product(from_tables, actual_data)
 
-            col_map = {i: val for i, val in enumerate(select_columns)}
+            sel_columns = []
+            for col in select_columns:
+                for table in from_tables:
+                    if col in list(actual_data[table].keys()):
+                        sel_columns.append(table + "." + col)
+                        break
+
+            col_map = {i: val for i, val in enumerate(result_columns)}
+            if isinstance(condition_tuples[0][0], list):
+                condition_tuples[0][0] = ".".join(condition_tuples[0][0])
+            if isinstance(condition_tuples[1][0], list):
+                condition_tuples[1][0] = ".".join(condition_tuples[1][0])
 
             final_results = []
             for row in query_results:
-                checks = 0
+                valid1 = 0
+                valid2 = 0
+                operand1 = ""
+                operand2 = ""
                 for i, col in enumerate(row):
-                    if logical_operator == "and":
-                        if col_map[i] == condition_tuples[checks][0] and \
-                                    perform_operation(col, condition_tuples[checks][1], condition_tuples[checks][2]):
-                            checks += 1
-                        if checks == 2:
-                            final_results.append(row)
-                            checks = 0
-                    elif logical_operator == "or":
-                        if (col_map[i] == condition_tuples[0][0] and perform_operation(col, condition_tuples[0][1],
-                                                                                       condition_tuples[0][2])) \
-                                or \
-                                (col_map[i] == condition_tuples[1][0] and perform_operation(col, condition_tuples[1][1],
-                                                                                            condition_tuples[1][2])):
-                            final_results.append(row)
+                    if result_columns[i] == condition_tuples[0][0]:
+                        operand1 = col
+                    if condition_tuples[0][1].isnumeric():
+                        operand2 = condition_tuples[0][1]
+                    if operand1 and operand2 and perform_operation(operand1, operand2, condition_tuples[0][2]):
+                        valid1 = 1
+                # for i, col in enumerate(row):
+                    if result_columns[i] == condition_tuples[1][0]:
+                        operand1 = col
+                    if condition_tuples[1][1].isnumeric():
+                        operand2 = condition_tuples[1][1]
+                    if operand1 and operand2 and perform_operation(operand1, operand2, condition_tuples[1][2]):
+                        valid2 = 1
+                if logical_operator == "and":
+                    if valid1 and valid2:
+                        temp = []
+                        count = 0
+                        for i, col in enumerate(row):
+                            if col_map[i] in sel_columns and count != len(sel_columns):
+                                temp.append(col)
+                                count += 1
+                        final_results.append(temp)
+                elif logical_operator == "or":
+                    if valid1 or valid2:
+                        temp = []
+                        count = 0
+                        for i, col in enumerate(row):
+                            if col_map[i] in sel_columns and count != len(sel_columns):
+                                temp.append(col)
+                                count += 1
+                        final_results.append(temp)
+
             query_results = final_results
             query_results = handle_distinct(query_results, distinct)
-            return query_results, result_columns
+            return query_results, sel_columns
     else:
         aggregate_values = []
         result_columns = []
@@ -588,7 +634,7 @@ def complex_join_query(actual_data, distinct, select_columns, from_tables, condi
         return aggregate_values, result_columns
 
 
-def execute_query(path, select_columns, distinct, from_tables, table_data, condition_tuples, logical_operator):
+def execute_query(select_columns, distinct, from_tables, table_data, condition_tuples, logical_operator):
     """
     Execute the given query and return the results
     :param select_columns: columns in the select statement
@@ -598,9 +644,8 @@ def execute_query(path, select_columns, distinct, from_tables, table_data, condi
     :param condition_tuples: conditions on the data
     :return: query results
     """
-    actual_data = IP.read_data(path, from_tables, table_data)
-    print(actual_data)
-
+    actual_data = IP.read_data(from_tables, table_data)
+    result_columns = []
     # Handling different types of queries
     # Star Query
     if len(select_columns) == 1 and select_columns[0] == "*":
@@ -619,6 +664,4 @@ def execute_query(path, select_columns, distinct, from_tables, table_data, condi
         query_results, result_columns = complex_join_query(actual_data, distinct, select_columns, from_tables, condition_tuples, logical_operator)
     else:
         query_results = []
-    print(result_columns)
-    print(query_results)
     return query_results, result_columns

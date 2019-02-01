@@ -1,14 +1,14 @@
 import csv
 
 
-def read_metadata(path):
+def read_metadata():
     """
     Function which will read the metadata from the file
     :param path: Takes the directory containing the files as input
     :return: map of all the table names and corresponding columns
     """
     lines = []
-    with open(path + "/" + "metadata.txt", 'r') as meta_file:
+    with open("metadata.txt", 'r') as meta_file:
         lines = meta_file.readlines()
 
     lines = [l.strip() for l in lines]
@@ -33,7 +33,7 @@ def read_metadata(path):
     return table_map
 
 
-def read_data(path, table_list, table_data):
+def read_data(table_list, table_data):
     """
     Read the actual data of the tables into data structures
     :param path: Takes the directory containing the files as input
@@ -51,7 +51,7 @@ def read_data(path, table_list, table_data):
         temp = []
         column_names = table_data[table]
         column_map = {}
-        with open(path + "/" + table + ".csv", 'r') as f:
+        with open(table + ".csv", 'r') as f:
             reader = csv.reader(f, dialect='myDialect')
             for row in reader:
                 temp.append(row)
